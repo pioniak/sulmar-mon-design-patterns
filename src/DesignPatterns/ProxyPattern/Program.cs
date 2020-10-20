@@ -2,10 +2,55 @@
 
 namespace ProxyPattern
 {
+    public class Customer
+    {
+        public int Id { get; set; }
+        public virtual string FirstName { get; set; }
+        public virtual string LastName { get; set; }
+    }
+
+
+    public class ProxyCustomer : Customer
+    {
+        public bool HasChanged { get; private set; }
+
+        public override string FirstName
+        {
+            get => base.FirstName;
+            set
+            {
+                base.FirstName = value;
+                HasChanged = true;
+            }
+        }
+
+        public override string LastName
+        {
+            get => base.LastName; set
+            {
+                base.LastName = value;
+                HasChanged = true;
+            }
+        }
+
+    }
+
+
+
     class Program
     {
         static void Main(string[] args)
         {
+            ProxyCustomer customer = new ProxyCustomer();
+            customer.FirstName = "John";
+
+            if (customer.HasChanged)
+            {
+
+            }    
+
+
+
             Console.WriteLine("Hello Proxy Pattern!");
             SaveProductTest();
 
