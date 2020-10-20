@@ -13,6 +13,16 @@ namespace SingletonPattern
 
         private static void LoggerTest()
         {
+            Logger logger1 = LazySingleton<Logger>.Instance;
+
+            Logger logger2 = LazySingleton<Logger>.Instance;
+
+            if (ReferenceEquals(logger1, logger2))
+            {
+
+            }
+
+
             MessageService messageService = new MessageService();
             PrintService printService = new PrintService();
             messageService.Send("Hello World!");
@@ -37,6 +47,28 @@ namespace SingletonPattern
         }
     }
 
+
+
+    public class ApplicationContext
+    {
+        public string Username { get; set; }
+        public DateTime LoginDate { get; set; }
+
+        public int SelectedTab { get; set; }
+        public Customer SelectedCustomer { get; set; }
+        public Product SelectedProduct { get; set; }
+
+    }
+
+    public class Customer
+    {
+
+    }
+
+    public class Product
+    {
+
+    }
 
 
     public class MessageService
@@ -70,9 +102,17 @@ namespace SingletonPattern
                 logger.LogInformation($"Print {i} copy of {content}");
             }
         }
-
-
-
-
     }
+
+    public sealed class LazySingleton<T>
+        where T : new()
+    {
+
+        private static readonly Lazy<T> lazy = new Lazy<T>(() => new T());
+
+        public static T Instance => lazy.Value;
+
+
+
+    }    
 }
