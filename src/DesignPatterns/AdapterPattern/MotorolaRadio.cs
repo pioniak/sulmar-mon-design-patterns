@@ -14,9 +14,10 @@ namespace AdapterPattern
             enabled = false;
         }
 
-        public void PowerOn()
+        public void PowerOn(string pincode)
         {
-            enabled = true;
+            if (pincode=="1234")
+                enabled = true;
         }
 
         public void SelectChannel(byte channel)
