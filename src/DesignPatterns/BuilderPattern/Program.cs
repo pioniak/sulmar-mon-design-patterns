@@ -16,7 +16,38 @@ namespace BuilderPattern
 
             //PhoneTest();
 
-            SalesReportTest();
+            //  SalesReportTest();
+
+            //  SalesReportBuilderTest();
+
+            FluentPhoneTests.CallTest();
+
+        }
+
+        private static void SalesReportBuilderTest()
+        {
+            FakeOrdersService ordersService = new FakeOrdersService();
+            IEnumerable<Order> orders = ordersService.Get();
+            ISalesReportBuilder salesReportBuilder = new SalesReportBuilder(orders);
+
+            salesReportBuilder.AddHeader();
+            salesReportBuilder.AddSectionByGender();
+            salesReportBuilder.AddSectionByProduct();
+
+            SalesReport salesReport = salesReportBuilder.Build();
+        }
+
+        private static void SalesReportBuilderFluentTest()
+        {
+            FakeOrdersService ordersService = new FakeOrdersService();
+            IEnumerable<Order> orders = ordersService.Get();
+            ISalesReportBuilder salesReportBuilder = new SalesReportBuilder(orders);
+
+            //salesReportBuilder
+            //    .AddHeader()
+            //    .AddSectionByGender()
+            //    .AddSectionByProduct()
+            //    .Build();
         }
 
         private static void SalesReportTest()
@@ -26,10 +57,14 @@ namespace BuilderPattern
 
             SalesReport salesReport = new SalesReport();
 
+
+            // Header
             salesReport.Title = "Raport sprzedaży";
             salesReport.CreateDate = DateTime.Now;
             salesReport.TotalSalesAmount = orders.Sum(s => s.Amount);
 
+
+            // By Gender
             salesReport.GenderDetails = orders
                 .GroupBy(o => o.Customer.Gender)
                 .Select(g => new GenderReportDetail(
@@ -37,6 +72,7 @@ namespace BuilderPattern
                             g.Sum(x => x.Details.Sum(d => d.Quantity)),
                             g.Sum(x => x.Details.Sum(d => d.LineTotal))));
 
+            // By Product
             salesReport.ProductDetails = orders
                 .SelectMany(o => o.Details)
                 .GroupBy(o => o.Product)
@@ -53,6 +89,69 @@ namespace BuilderPattern
         }
 
        
+    }
+
+    // Abstract Builder
+    public interface ISalesReportBuilder
+    {
+        void AddHeader();
+        void AddSectionByGender();
+        void AddSectionByProduct();
+        SalesReport Build();
+    }
+
+    // Concrete Builder
+
+    public class SalesReportBuilder : ISalesReportBuilder
+    {
+        private IEnumerable<Order> orders;
+
+        private SalesReport salesReport;
+
+        private SalesReportBuilder()
+        {
+            salesReport = new SalesReport();
+        }
+
+        public SalesReportBuilder(IEnumerable<Order> orders)
+            : this()
+        {
+            this.orders = orders;
+        }
+
+        public void AddHeader()
+        {
+            salesReport.Title = "Raport sprzedaży";
+            salesReport.TotalSalesAmount = orders.Sum(s => s.Amount);
+        }
+
+        public void AddSectionByGender()
+        {
+            salesReport.GenderDetails = orders
+              .GroupBy(o => o.Customer.Gender)
+              .Select(g => new GenderReportDetail(
+                          g.Key,
+                          g.Sum(x => x.Details.Sum(d => d.Quantity)),
+                          g.Sum(x => x.Details.Sum(d => d.LineTotal))));
+        }
+
+        public void AddSectionByProduct()
+        {
+            salesReport.ProductDetails = orders
+              .SelectMany(o => o.Details)
+              .GroupBy(o => o.Product)
+              .Select(g => new ProductReportDetail(g.Key, g.Sum(p => p.Quantity), g.Sum(p => p.LineTotal)));
+
+        }
+
+        public SalesReport Build()
+        {
+            SalesReport result = salesReport;
+
+            salesReport = null;
+
+            return result;
+        }
     }
 
     public class FakeOrdersService
@@ -118,28 +217,7 @@ namespace BuilderPattern
         }
     }
 
-    #region Models
-
-    public class Phone
-    {
-        public void Call(string from, string to, string subject)
-        {
-            Console.WriteLine($"Calling from {from} to {to} with subject {subject}");
-        }
-
-        public void Call(string from, string to)
-        {
-            Console.WriteLine($"Calling from {from} to {to}");
-        }
-
-        public void Call(string from, IEnumerable<string> tos, string subject)
-        {
-            foreach (var to in tos)
-            {
-                Call(from, to, subject);
-            }
-        }
-    }
+#region Models
 
     #endregion
 
