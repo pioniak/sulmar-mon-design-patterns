@@ -150,13 +150,38 @@ namespace StatePattern
         public TimeSpan TimeOfDay => DateTime.Now.TimeOfDay;
     }
 
+    public interface ITimerService
+    {
+        event ElapsedEventHandler Elapsed;
+
+        void Start();
+        void Stop();
+    }
+
+    public class TimerService : ITimerService
+    {
+        public event ElapsedEventHandler Elapsed;
+
+        private Timer timer = new Timer(TimeSpan.FromSeconds(5).TotalMilliseconds);
+
+        public void Start()
+        {
+            timer.Start();
+        }
+
+        public void Stop()
+        {
+            timer.Stop();
+        }
+    }
+
     public class LampStateMachine : StateMachine<LampState, LampTrigger>
     {
         private ITimeService timeService;
 
         private int redCounter = 0;
 
-        private Timer timer = new Timer(TimeSpan.FromSeconds(5).TotalMilliseconds);
+        private ITimerService timer;
 
         private bool IsOverLimit => redCounter >= 5;
 
@@ -165,10 +190,11 @@ namespace StatePattern
 
         private bool IsOverTime => timeService.TimeOfDay >= TimeLimit;
 
-        public LampStateMachine(IMessageService messageService, ITimeService timeService = null, LampState initialState =LampState.Off)
+        public LampStateMachine(IMessageService messageService, ITimeService timeService = null, LampState initialState = LampState.Off, ITimerService timer = null)
             : base(initialState)
         {
             this.timeService = timeService ?? new TimeService();
+            this.timer = timer ?? new TimerService();
 
             timer.Elapsed += (s, a) => this.Fire(LampTrigger.ElapsedTime);
 
@@ -196,6 +222,7 @@ namespace StatePattern
 
 
             this.OnTransitioned(t => Console.WriteLine($"{t.Source} -> {t.Destination}"));
+            this.timer = timer;
         }
 
     }

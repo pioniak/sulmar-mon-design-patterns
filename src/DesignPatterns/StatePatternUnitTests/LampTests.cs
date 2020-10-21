@@ -2,6 +2,7 @@ using FluentAssertions;
 using Moq;
 using StatePattern;
 using System;
+using System.Timers;
 using Xunit;
 
 namespace StatePatternUnitTests
@@ -79,6 +80,26 @@ namespace StatePatternUnitTests
         [Fact]
         public void PushUp_LampStateOff_ShouldSend()
         {
+
+        }
+
+        [Fact]
+        public void TimerElapsed_LampStateOn_ShouldLampStateOff()
+        {
+
+            Mock<ITimerService> mockTimer = new Mock<ITimerService>();
+
+            // Arrange
+            ProxyLamp lamp = new ProxyLamp(new LampStateMachine(messageService, timer: mockTimer.Object));
+
+            // Act
+            lamp.PushUp();
+
+            mockTimer.Raise(m => m.Elapsed += null, EventArgs.Empty);
+
+            // Assert
+            lamp.State.Should().Be(LampState.Off);
+
 
         }
     }
