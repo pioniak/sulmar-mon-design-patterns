@@ -15,8 +15,8 @@ namespace StatePattern
 
             IMessageService messageService = new ConsoleMessageService();
 
-            ProxyLamp lamp = new ProxyLamp(messageService);
-            lamp.TimeLimit = TimeSpan.Parse("13:00");
+            ProxyLamp lamp = new ProxyLamp(new LampStateMachine(messageService));
+            // lamp.TimeLimit = TimeSpan.Parse("13:00");
 
             Console.WriteLine(lamp.Graph);
 
@@ -150,15 +150,9 @@ namespace StatePattern
         public TimeSpan TimeOfDay => DateTime.Now.TimeOfDay;
     }
 
-    // Przykład użycia wzorca Proxy
-    public class ProxyLamp : Lamp
+    public class LampStateMachine : StateMachine<LampState, LampTrigger>
     {
-        private StateMachine<LampState, LampTrigger> machine;
         private ITimeService timeService;
-
-        public string Graph => Stateless.Graph.UmlDotGraph.Format(machine.GetInfo());
-
-        public override LampState State => machine.State;
 
         private int redCounter = 0;
 
@@ -166,25 +160,26 @@ namespace StatePattern
 
         private bool IsOverLimit => redCounter >= 5;
 
-        private bool IsOverTime => timeService.TimeOfDay > TimeLimit;
+        public TimeSpan TimeLimit { get; set; } = TimeSpan.Parse("13:00");
 
-        public ProxyLamp(IMessageService messageService, LampState initialState = LampState.Off, ITimeService timeService = null)
-            : base(messageService)
+
+        private bool IsOverTime => timeService.TimeOfDay >= TimeLimit;
+
+        public LampStateMachine(IMessageService messageService, ITimeService timeService = null, LampState initialState =LampState.Off)
+            : base(initialState)
         {
-            machine = new StateMachine<LampState, LampTrigger>(initialState);
-
             this.timeService = timeService ?? new TimeService();
 
-            timer.Elapsed += (s, a) => machine.Fire(LampTrigger.ElapsedTime);
+            timer.Elapsed += (s, a) => this.Fire(LampTrigger.ElapsedTime);
 
-            machine.Configure(LampState.Off)
-                // .Permit(LampTrigger.PushUp, LampState.On)
-                .PermitIf(LampTrigger.PushUp, LampState.On, () => IsOverTime, $"Limit > {TimeLimit}")
-                .IgnoreIf(LampTrigger.PushUp, () => !IsOverTime, $"Limit <= {TimeLimit}")
-                .Ignore(LampTrigger.PushDown)
-                .OnEntry(() => messageService.Send("Dziękujemy za wyłączenie światła"), nameof(messageService.Send));
+            this.Configure(LampState.Off)
+               // .Permit(LampTrigger.PushUp, LampState.On)
+               .PermitIf(LampTrigger.PushUp, LampState.On, () => IsOverTime, $"Limit > {TimeLimit}")
+               .IgnoreIf(LampTrigger.PushUp, () => !IsOverTime, $"Limit <= {TimeLimit}")
+               .Ignore(LampTrigger.PushDown)
+               .OnEntry(() => messageService.Send("Dziękujemy za wyłączenie światła"), nameof(messageService.Send));
 
-            machine.Configure(LampState.On)
+            this.Configure(LampState.On)
                 .OnEntry(() => messageService.Send("Pamiętaj o wyłączeniu światła!"), nameof(messageService.Send))
                 .OnEntry(() => timer.Start(), "Start timer")
                 .Permit(LampTrigger.PushDown, LampState.Off)
@@ -194,11 +189,30 @@ namespace StatePattern
                 .OnExit(() => timer.Stop());
 
 
-            machine.Configure(LampState.Red)
+            this.Configure(LampState.Red)
                 .OnEntry(() => redCounter++)
                 .Permit(LampTrigger.PushUp, LampState.On)
                 .Permit(LampTrigger.PushDown, LampState.Off);
-            this.timeService = timeService;
+
+
+            this.OnTransitioned(t => Console.WriteLine($"{t.Source} -> {t.Destination}"));
+        }
+
+    }
+
+    // Przykład użycia wzorca Proxy
+    public class ProxyLamp : Lamp
+    {
+        private StateMachine<LampState, LampTrigger> machine;
+      
+        public string Graph => Stateless.Graph.UmlDotGraph.Format(machine.GetInfo());
+
+        public override LampState State => machine.State;
+
+        public ProxyLamp(StateMachine<LampState, LampTrigger> machine)
+            : base()
+        {
+            this.machine = machine;
         }
 
         public override void PushUp() => machine.Fire(LampTrigger.PushUp);
@@ -212,15 +226,6 @@ namespace StatePattern
     public class Lamp
     {
         public virtual LampState State { get; set; }
-
-        private readonly IMessageService messageService;
-
-        public TimeSpan TimeLimit { get; set; } = TimeSpan.Parse("13:00");
-
-        public Lamp(IMessageService messageService)
-        {
-            this.messageService = messageService;
-        }
 
         public virtual void PushUp()
         {

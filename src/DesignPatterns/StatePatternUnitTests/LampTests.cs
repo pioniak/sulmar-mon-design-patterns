@@ -27,7 +27,7 @@ namespace StatePatternUnitTests
             ITimeService timeService = Mock.Of<ITimeService>(ts=>ts.TimeOfDay==TimeSpan.Parse(currentTime));
 
             // Arrange
-            ProxyLamp lamp = new ProxyLamp(messageService, LampState.Off, timeService);
+            ProxyLamp lamp = new ProxyLamp(new LampStateMachine(messageService, timeService));
 
             // Act
             lamp.PushUp();
@@ -43,7 +43,7 @@ namespace StatePatternUnitTests
         public void PushUp_CurrentState_ShouldTargetState(LampState currentState, LampState expectedState)
         {
             // Arrange
-            ProxyLamp lamp = new ProxyLamp(messageService, currentState);
+            ProxyLamp lamp = new ProxyLamp(new LampStateMachine(messageService, initialState: currentState));
 
             // Act
             lamp.PushUp();
@@ -59,7 +59,7 @@ namespace StatePatternUnitTests
         public void PushDown_CurrentState_ShouldTargetState(LampState currentState, LampState expectedState)
         {
             // Arrange
-            ProxyLamp lamp = new ProxyLamp(messageService, currentState);
+            ProxyLamp lamp = new ProxyLamp(new LampStateMachine(messageService, initialState: currentState));
 
             // Act
             lamp.PushDown();
