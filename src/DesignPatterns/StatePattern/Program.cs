@@ -1,5 +1,6 @@
 ﻿using Stateless;
 using System;
+using System.Runtime.CompilerServices;
 using System.Timers;
 
 namespace StatePattern
@@ -139,28 +140,47 @@ namespace StatePattern
         }
     }
 
+    public interface ITimeService
+    {
+        TimeSpan TimeOfDay { get; }
+    }
+
+    public class TimeService : ITimeService
+    {
+        public TimeSpan TimeOfDay => DateTime.Now.TimeOfDay;
+    }
+
     // Przykład użycia wzorca Proxy
     public class ProxyLamp : Lamp
     {
         private StateMachine<LampState, LampTrigger> machine;
+        private ITimeService timeService;
 
         public string Graph => Stateless.Graph.UmlDotGraph.Format(machine.GetInfo());
 
         public override LampState State => machine.State;
 
+        private int redCounter = 0;
+
         private Timer timer = new Timer(TimeSpan.FromSeconds(5).TotalMilliseconds);
 
-        public ProxyLamp(IMessageService messageService)
+        private bool IsOverLimit => redCounter >= 5;
+
+        private bool IsOverTime => timeService.TimeOfDay > TimeLimit;
+
+        public ProxyLamp(IMessageService messageService, LampState initialState = LampState.Off, ITimeService timeService = null)
             : base(messageService)
         {
-            machine = new StateMachine<LampState, LampTrigger>(LampState.Off);
+            machine = new StateMachine<LampState, LampTrigger>(initialState);
+
+            this.timeService = timeService ?? new TimeService();
 
             timer.Elapsed += (s, a) => machine.Fire(LampTrigger.ElapsedTime);
 
             machine.Configure(LampState.Off)
                 // .Permit(LampTrigger.PushUp, LampState.On)
-                .PermitIf(LampTrigger.PushUp, LampState.On, () => DateTime.Now.TimeOfDay > TimeLimit, $"Limit > {TimeLimit}")
-                .IgnoreIf(LampTrigger.PushUp, () => DateTime.Now.TimeOfDay <= TimeLimit, $"Limit <= {TimeLimit}")
+                .PermitIf(LampTrigger.PushUp, LampState.On, () => IsOverTime, $"Limit > {TimeLimit}")
+                .IgnoreIf(LampTrigger.PushUp, () => !IsOverTime, $"Limit <= {TimeLimit}")
                 .Ignore(LampTrigger.PushDown)
                 .OnEntry(() => messageService.Send("Dziękujemy za wyłączenie światła"), nameof(messageService.Send));
 
@@ -168,14 +188,17 @@ namespace StatePattern
                 .OnEntry(() => messageService.Send("Pamiętaj o wyłączeniu światła!"), nameof(messageService.Send))
                 .OnEntry(() => timer.Start(), "Start timer")
                 .Permit(LampTrigger.PushDown, LampState.Off)
-                .Permit(LampTrigger.PushUp, LampState.Red)
+                .PermitIf(LampTrigger.PushUp, LampState.Red, () => !IsOverLimit)
+                .PermitIf(LampTrigger.PushUp, LampState.Off, () => IsOverLimit)
                 .Permit(LampTrigger.ElapsedTime, LampState.Off)
                 .OnExit(() => timer.Stop());
 
 
             machine.Configure(LampState.Red)
+                .OnEntry(() => redCounter++)
                 .Permit(LampTrigger.PushUp, LampState.On)
                 .Permit(LampTrigger.PushDown, LampState.Off);
+            this.timeService = timeService;
         }
 
         public override void PushUp() => machine.Fire(LampTrigger.PushUp);
