@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Text;
 
 namespace VisitorPattern
 {
@@ -12,7 +13,12 @@ namespace VisitorPattern
 
             Form form = Get();
 
-            string html = form.GetHtml();
+
+            IVisitor visitor = new HtmlVisitor();
+
+            form.Accept(visitor);
+
+            string html = visitor.Output;
 
             System.IO.File.WriteAllText("index.html", html);
         }
@@ -27,10 +33,10 @@ namespace VisitorPattern
                 Body = new Collection<Control>
                 {
 
-                    new Control { Type = ControlType.Label, Caption = "Person", Name = "lblName" },
-                    new Control { Type = ControlType.TextBox, Caption = "FirstName", Name = "txtFirstName", Value = "John"},
-                    new Control { Type = ControlType.Checkbox, Caption = "IsAdult", Name = "chkIsAdult", Value = "true" },
-                    new Control {  Type = ControlType.Button, Caption = "Submit", Name = "btnSubmit", ImageSource = "save.png" },
+                    new LabelControl { Caption = "Person", Name = "lblName" },
+                    new TextBoxControl { Caption = "FirstName", Name = "txtFirstName", Value = "John"},
+                    new CheckBoxControl { Caption = "IsAdult", Name = "chkIsAdult", Value = true },
+                    new ButtonControl {  Caption = "Submit", Name = "btnSubmit", ImageSource = "save.png" },
                 }
 
             };
@@ -47,56 +53,150 @@ namespace VisitorPattern
         public string Title { get; set; }
         public ICollection<Control> Body { get; set; }
 
-        public string GetHtml()
+        public void Accept(IVisitor visitor)
         {
-            string html = "<html>";
-
-            html += $"<title>{Title}</title>";
-
-            html += "<body>";
-
             foreach (var control in Body)
             {
-                switch (control.Type)
-                {
-                    case ControlType.Label:
-                        html += $"<span>{control.Caption}</span>"; break;
-
-                    case ControlType.TextBox:
-                        html += $"<span>{control.Caption}</span><input type='text' value='{control.Value}'></input>"; break;
-
-                    case ControlType.Checkbox:
-                        html += $"<span>{control.Caption}</span><input type='checkbox' value='{control.Value}'></input>"; break;
-
-                    case ControlType.Button:
-                        html += $"<button><img src='{control.ImageSource}'/>{control.Caption}</button>"; break;
-                }
-
+                control.Accept(visitor);
             }
+        }
 
-            html += "</body>";
-            html += "</html>";
+       
+    }
 
-            return html;
+    // Abstract Visitor
+    public interface IVisitor
+    {
+        void Visit(LabelControl control);
+        void Visit(TextBoxControl control);
+        void Visit(CheckBoxControl control);
+        void Visit(ButtonControl control);
+        string Output { get; }
+    }
+
+    // Concrete Visitor
+    public class HtmlVisitor : IVisitor
+    {
+        private StringBuilder builder = new StringBuilder();
+
+        public HtmlVisitor()
+        {
+            builder.AppendLine("<html>");
+        }
+
+        public void Visit(LabelControl control)
+        {
+            builder.AppendLine($"<span>{control.Caption}</span>");
+        }
+
+        public void Visit(TextBoxControl control)
+        {
+            builder.AppendLine($"<span>{control.Caption}</span><input type='text' value={control.Value}></input>");
+        }
+
+        public void Visit(CheckBoxControl control)
+        {
+            builder.AppendLine($"<span>{control.Caption}</span><input type='checkbox' value={control.Value}></input>");
+        }
+
+        public void Visit(ButtonControl control)
+        {
+            builder.AppendLine($"<button><img src='{control.ImageSource}'></img>{control.Caption}</button>");
+        }
+
+        public string Output
+        {
+            get
+            {
+                builder.AppendLine("</html>");
+
+                return builder.ToString();
+            }
         }
     }
 
-    public class Control
+
+    public class XmlVisitor : IVisitor
+    {
+        public string Output => throw new NotImplementedException();
+
+        public void Visit(LabelControl control)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Visit(TextBoxControl control)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Visit(CheckBoxControl control)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Visit(ButtonControl control)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public abstract class Control
     {
         public string Name { get; set; }
         public string Caption { get; set; }
-        public ControlType Type { get; set; }
-        public string Value { get; set; }
-        public string ImageSource { get; set; }
+
+        public abstract void Accept(IVisitor visitor);
     }
 
-    public enum ControlType
+    public class LabelControl : Control
     {
-        Label,
-        TextBox,
-        Checkbox,
-        Button
+        public override void Accept(IVisitor visitor)
+        {
+            visitor.Visit(this);
+        }
     }
+
+    public class TextBoxControl : Control
+    {
+        public string Value { get; set; }
+
+        public override void Accept(IVisitor visitor)
+        {
+            visitor.Visit(this);
+        }
+    }
+
+    public class CheckBoxControl : Control
+    {
+        public bool Value { get; set; }
+
+        public override void Accept(IVisitor visitor)
+        {
+            visitor.Visit(this);
+        }
+    }
+
+    public class ButtonControl : Control
+    {
+        public string ImageSource { get; set; }
+
+        public override void Accept(IVisitor visitor)
+        {
+            visitor.Visit(this);
+        }
+    }
+
+
+    //public enum ControlType
+    //{
+    //    Label,
+    //    TextBox,
+    //    Checkbox,
+    //    Button
+    //}
+
+
 
 
     #endregion
